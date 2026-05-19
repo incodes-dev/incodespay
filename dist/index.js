@@ -253,7 +253,7 @@ var openCashfreeCheckout = async ({ paymentSessionId }) => {
     redirectTarget: "_modal"
   });
   console.log("cashfreeResponse", response);
-  if (response?.error || response?.code === "payment_aborted") {
+  if (response?.error || response?.raw?.error || response?.code === "payment_aborted" || response?.raw?.code === "payment_aborted") {
     return createPaymentErrorResponse({
       gateway: "cashfree",
       message: response?.error?.message || response?.message || "Payment cancelled",

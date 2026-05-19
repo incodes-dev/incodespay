@@ -26,7 +26,12 @@ export const openCashfreeCheckout = async ({ paymentSessionId }: any) => {
 
   console.log("cashfreeResponse", response);
 
-  if (response?.error || response?.code === "payment_aborted") {
+  if (
+    response?.error ||
+    response?.raw?.error ||
+    response?.code === "payment_aborted" ||
+    response?.raw?.code === "payment_aborted"
+  ) {
     return createPaymentErrorResponse({
       gateway: "cashfree",
 
