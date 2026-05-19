@@ -54,14 +54,18 @@ var createPaymentSuccessResponse = ({
   gateway,
   transactionId,
   raw
-}) => {
-  return {
-    success: true,
-    gateway,
-    transactionId,
-    raw
-  };
-};
+}) => ({
+  success: true,
+  gateway,
+  transactionId,
+  raw
+});
+var createPaymentErrorResponse = ({ gateway, message, raw }) => ({
+  success: false,
+  gateway,
+  message,
+  raw
+});
 
 // src/shared/errors.ts
 var PaymentCancelledError = class extends Error {
@@ -276,19 +280,23 @@ var openCashfreeCheckout = async ({ paymentSessionId }) => {
   const cashfree = window.Cashfree({
     mode: "sandbox"
   });
-  try {
-    const response = await cashfree.checkout({
-      paymentSessionId,
-      redirectTarget: "_modal"
-    });
-    return createPaymentSuccessResponse({
+  const response = await cashfree.checkout({
+    paymentSessionId,
+    redirectTarget: "_modal"
+  });
+  console.log("cashfreeResponse", response);
+  if (response?.error || response?.code === "payment_aborted") {
+    return createPaymentErrorResponse({
       gateway: "cashfree",
-      transactionId: response?.paymentDetails?.paymentMessage || response?.order?.order_id || paymentSessionId,
+      message: response?.error?.message || response?.message || "Payment cancelled",
       raw: response
     });
-  } catch (error) {
-    throw new PaymentCancelledError();
   }
+  return createPaymentSuccessResponse({
+    gateway: "cashfree",
+    transactionId: response?.paymentDetails?.cf_payment_id || response?.order?.order_id || paymentSessionId,
+    raw: response
+  });
 };
 
 // src/client/startPayment.ts

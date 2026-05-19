@@ -2,14 +2,19 @@ export const createPaymentSuccessResponse = ({
   gateway,
   transactionId,
   raw,
-}: any) => {
-  return {
-    success: true,
+}: any) => ({
+  success: true,
+  gateway,
+  transactionId,
+  raw,
+});
 
-    gateway,
+export const createPaymentErrorResponse = ({ gateway, message, raw }: any) => ({
+  success: false,
 
-    transactionId,
+  gateway,
 
-    raw,
-  };
-};
+  message,
+
+  raw,
+});

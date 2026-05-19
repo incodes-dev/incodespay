@@ -40,6 +40,11 @@ declare const openCashfreeCheckout: ({ paymentSessionId }: any) => Promise<{
     gateway: any;
     transactionId: any;
     raw: any;
+} | {
+    success: boolean;
+    gateway: any;
+    message: any;
+    raw: any;
 }>;
 
 export { openCashfreeCheckout, openFlutterwaveCheckout, openPaypalCheckout, openPaystackCheckout, openRazorpayCheckout, openStripeCheckout, startPayment };

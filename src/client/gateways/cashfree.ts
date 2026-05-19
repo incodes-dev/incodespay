@@ -1,6 +1,9 @@
 import { loadScript } from "../utils/loadScript";
-import { createPaymentSuccessResponse } from "../../shared/paymentResponse";
-import { PaymentCancelledError } from "../../shared/errors";
+
+import {
+  createPaymentSuccessResponse,
+  createPaymentErrorResponse,
+} from "../../shared/paymentResponse";
 
 declare global {
   interface Window {
@@ -15,24 +18,33 @@ export const openCashfreeCheckout = async ({ paymentSessionId }: any) => {
     mode: "sandbox",
   });
 
-  try {
-    const response = await cashfree.checkout({
-      paymentSessionId,
+  const response = await cashfree.checkout({
+    paymentSessionId,
 
-      redirectTarget: "_modal",
-    });
+    redirectTarget: "_modal",
+  });
 
-    return createPaymentSuccessResponse({
+  console.log("cashfreeResponse", response);
+
+  if (response?.error || response?.code === "payment_aborted") {
+    return createPaymentErrorResponse({
       gateway: "cashfree",
 
-      transactionId:
-        response?.paymentDetails?.paymentMessage ||
-        response?.order?.order_id ||
-        paymentSessionId,
+      message:
+        response?.error?.message || response?.message || "Payment cancelled",
 
       raw: response,
     });
-  } catch (error) {
-    throw new PaymentCancelledError();
   }
+
+  return createPaymentSuccessResponse({
+    gateway: "cashfree",
+
+    transactionId:
+      response?.paymentDetails?.cf_payment_id ||
+      response?.order?.order_id ||
+      paymentSessionId,
+
+    raw: response,
+  });
 };
