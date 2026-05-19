@@ -1,6 +1,6 @@
 {
   "name": "incodespay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Reusable multi-gateway payments package for Next.js and generic React/Node apps.",
   "files": [
     "dist"
