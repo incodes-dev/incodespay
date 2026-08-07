@@ -12,4 +12,6 @@ declare const createStripeSession: ({ secretKey, amount, currency, customer, met
 
 declare const createCashfreeOrder: ({ clientId, clientSecret, amount, customer, returnUrl, }: any) => Promise<any>;
 
-export { createCashfreeOrder, createRazorpayOrder, createStripeSession };
+declare const createNowPaymentsInvoice: ({ apiKey, sandboxKey, sandbox, amount, currency, payCurrency, successUrl, cancelUrl, ipnUrl, metadata, }: any) => Promise<any>;
+
+export { createCashfreeOrder, createNowPaymentsInvoice, createRazorpayOrder, createStripeSession };

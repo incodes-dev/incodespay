@@ -6,12 +6,7 @@ export const GATEWAY_CONFIG = {
 
   stripe: {
     requiresBackend: true,
-    supportedCurrencies: [
-      "USD",
-      "EUR",
-      "INR",
-      "NGN",
-    ],
+    supportedCurrencies: ["USD", "EUR", "INR", "NGN"],
 
     minimumAmounts: {
       USD: 0.5,
@@ -35,5 +30,10 @@ export const GATEWAY_CONFIG = {
   cashfree: {
     requiresBackend: true,
     supportedCurrencies: ["INR"],
+  },
+
+  nowpayments: {
+    requiresBackend: true,
+    supportedCurrencies: ["USD", "EUR"],
   },
 };

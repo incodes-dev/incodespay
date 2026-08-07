@@ -9,6 +9,9 @@ import { openPaystackCheckout } from "./gateways/paystack";
 import { openFlutterwaveCheckout } from "./gateways/flutterwave";
 
 import { openCashfreeCheckout } from "./gateways/cashfree";
+
+import { openNowPaymentsCheckout } from "./gateways/nowpayments";
+
 import { GatewayConfigError } from "../shared/errors";
 
 export const startPayment = async ({
@@ -41,7 +44,8 @@ export const startPayment = async ({
   if (
     (gateway === "stripe" ||
       gateway === "razorpay" ||
-      gateway === "cashfree") &&
+      gateway === "cashfree" ||
+      gateway === "nowpayments") &&
     !apiUrl
   ) {
     throw new GatewayConfigError(`${gateway} requires apiUrl`);
@@ -199,6 +203,52 @@ export const startPayment = async ({
 
     return await openCashfreeCheckout({
       paymentSessionId: order.payment_session_id,
+    });
+  }
+
+  if (gateway === "nowpayments") {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        apiKey: credentials.apiKey,
+
+        sandboxKey: credentials.sandboxKey, 
+
+        sandbox: credentials.sandbox,
+
+        ipnSecret: credentials.ipnSecret,
+
+        payCurrency: credentials.payCurrency,
+
+        amount,
+
+        currency,
+
+        customer,
+
+        metadata,
+
+        successUrl,
+
+        cancelUrl,
+      }),
+    });
+
+    const invoiceData = await response.json();
+
+    if (!invoiceData?.status || !invoiceData?.data) {
+      throw new Error(
+        invoiceData?.message || "Failed to create NOWPayments invoice.",
+      );
+    }
+
+    return await openNowPaymentsCheckout({
+      checkoutUrl: invoiceData.data.invoice_url,
     });
   }
 

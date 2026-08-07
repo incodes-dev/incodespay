@@ -4,7 +4,8 @@ export type PaymentGateway =
   | "paypal"
   | "paystack"
   | "flutterwave"
-  | "cashfree";
+  | "cashfree"
+  | "nowpayments";
 
 export interface PaymentCustomer {
   name: string;

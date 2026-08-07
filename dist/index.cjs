@@ -299,6 +299,16 @@ var openCashfreeCheckout = async ({ paymentSessionId }) => {
   });
 };
 
+// src/client/gateways/nowpayments.ts
+var openNowPaymentsCheckout = async ({
+  checkoutUrl
+}) => {
+  if (!checkoutUrl) {
+    throw new Error("NOWPayments checkout URL missing.");
+  }
+  window.location.href = checkoutUrl;
+};
+
 // src/client/startPayment.ts
 var startPayment = async ({
   gateway,
@@ -323,7 +333,7 @@ var startPayment = async ({
   if (!currency) {
     throw new GatewayConfigError("Currency is required.");
   }
-  if ((gateway === "stripe" || gateway === "razorpay" || gateway === "cashfree") && !apiUrl) {
+  if ((gateway === "stripe" || gateway === "razorpay" || gateway === "cashfree" || gateway === "nowpayments") && !apiUrl) {
     throw new GatewayConfigError(`${gateway} requires apiUrl`);
   }
   if (gateway === "razorpay") {
@@ -422,6 +432,36 @@ var startPayment = async ({
     const order = orderData.data;
     return await openCashfreeCheckout({
       paymentSessionId: order.payment_session_id
+    });
+  }
+  if (gateway === "nowpayments") {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        apiKey: credentials.apiKey,
+        sandboxKey: credentials.sandboxKey,
+        sandbox: credentials.sandbox,
+        ipnSecret: credentials.ipnSecret,
+        payCurrency: credentials.payCurrency,
+        amount,
+        currency,
+        customer,
+        metadata,
+        successUrl,
+        cancelUrl
+      })
+    });
+    const invoiceData = await response.json();
+    if (!invoiceData?.status || !invoiceData?.data) {
+      throw new Error(
+        invoiceData?.message || "Failed to create NOWPayments invoice."
+      );
+    }
+    return await openNowPaymentsCheckout({
+      checkoutUrl: invoiceData.data.invoice_url
     });
   }
   throw new Error("Unsupported gateway");
