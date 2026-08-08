@@ -209,46 +209,47 @@ export const startPayment = async ({
   if (gateway === "nowpayments") {
     const response = await fetch(apiUrl, {
       method: "POST",
-
+  
       headers: {
         "Content-Type": "application/json",
       },
-
+  
       body: JSON.stringify({
         apiKey: credentials.apiKey,
-
-        sandboxKey: credentials.sandboxKey, 
-
+        sandboxKey: credentials.sandboxKey,
         sandbox: credentials.sandbox,
-
         ipnSecret: credentials.ipnSecret,
-
         payCurrency: credentials.payCurrency,
-
         amount,
-
         currency,
-
         customer,
-
         metadata,
-
         successUrl,
-
         cancelUrl,
       }),
     });
-
+  
     const invoiceData = await response.json();
-
-    if (!invoiceData?.status || !invoiceData?.data) {
+  
+    if (!response.ok || !invoiceData?.status) {
       throw new Error(
         invoiceData?.message || "Failed to create NOWPayments invoice.",
       );
     }
-
+  
+    const checkoutUrl =
+      invoiceData?.paymentUrl ||
+      invoiceData?.data?.invoice_url ||
+      invoiceData?.invoice?.invoice_url;
+  
+    if (!checkoutUrl) {
+      throw new Error(
+        "NOWPayments invoice was created but checkout URL was not returned.",
+      );
+    }
+  
     return await openNowPaymentsCheckout({
-      checkoutUrl: invoiceData.data.invoice_url,
+      checkoutUrl,
     });
   }
 

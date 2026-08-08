@@ -423,13 +423,19 @@ var startPayment = async ({
       })
     });
     const invoiceData = await response.json();
-    if (!invoiceData?.status || !invoiceData?.data) {
+    if (!response.ok || !invoiceData?.status) {
       throw new Error(
         invoiceData?.message || "Failed to create NOWPayments invoice."
       );
     }
+    const checkoutUrl = invoiceData?.paymentUrl || invoiceData?.data?.invoice_url || invoiceData?.invoice?.invoice_url;
+    if (!checkoutUrl) {
+      throw new Error(
+        "NOWPayments invoice was created but checkout URL was not returned."
+      );
+    }
     return await openNowPaymentsCheckout({
-      checkoutUrl: invoiceData.data.invoice_url
+      checkoutUrl
     });
   }
   throw new Error("Unsupported gateway");
