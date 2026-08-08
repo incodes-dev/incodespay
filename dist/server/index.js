@@ -90,6 +90,33 @@ var createCashfreeOrder = async ({
 
 // src/server/nowpayments.ts
 import axios2 from "axios";
+import crypto from "crypto";
+var PRODUCTION_ENDPOINT = "https://api.nowpayments.io/v1/invoice";
+var SANDBOX_ENDPOINT = "https://api-sandbox.nowpayments.io/v1/invoice";
+function toBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    return value.toLowerCase() === "true";
+  }
+  return Boolean(value);
+}
+function sortObject(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortObject);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.keys(value).sort().reduce(
+      (result, key) => {
+        result[key] = sortObject(value[key]);
+        return result;
+      },
+      {}
+    );
+  }
+  return value;
+}
 var createNowPaymentsInvoice = async ({
   apiKey,
   sandboxKey,
@@ -100,43 +127,111 @@ var createNowPaymentsInvoice = async ({
   successUrl,
   cancelUrl,
   ipnUrl,
-  metadata
+  ipnCallbackUrl,
+  orderId,
+  orderDescription,
+  metadata,
+  isFixedRate = true,
+  isFeePaidByUser = false
 }) => {
-  const key = sandbox ? sandboxKey : apiKey;
+  const isSandbox = toBoolean(sandbox);
+  const key = isSandbox ? sandboxKey : apiKey;
   if (!key) {
-    throw new Error("NOWPayments API key is missing.");
+    throw new Error(
+      isSandbox ? "NOWPayments sandbox API key is missing." : "NOWPayments production API key is missing."
+    );
   }
-  if (!amount) {
-    throw new Error("Amount is required.");
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error(
+      "NOWPayments amount must be greater than 0."
+    );
   }
   if (!currency) {
-    throw new Error("Currency is required.");
+    throw new Error(
+      "NOWPayments currency is required."
+    );
   }
+  const callbackUrl = ipnCallbackUrl || ipnUrl;
   const payload = {
-    price_amount: amount,
-    price_currency: currency.toLowerCase(),
-    pay_currency: payCurrency,
-    order_id: `NOWPAY_${Date.now()}`,
-    order_description: metadata?.description || metadata?.planType || "Payment",
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    ipn_callback_url: ipnUrl,
-    is_fixed_rate: true,
-    is_fee_paid_by_user: false
+    price_amount: numericAmount,
+    price_currency: String(currency).trim().toLowerCase(),
+    order_id: orderId || `NOWPAY_${Date.now()}`,
+    order_description: orderDescription || metadata?.description || metadata?.planType || "Payment",
+    is_fixed_rate: toBoolean(isFixedRate),
+    is_fee_paid_by_user: toBoolean(isFeePaidByUser)
   };
-  const endpoint = sandbox ? "https://api-sandbox.nowpayments.io/v1/invoice" : "https://api.nowpayments.io/v1/invoice";
-  const { data } = await axios2.post(endpoint, payload, {
-    headers: {
-      "x-api-key": key,
-      "Content-Type": "application/json"
+  if (payCurrency) {
+    payload.pay_currency = String(payCurrency).trim().toLowerCase();
+  }
+  if (successUrl) {
+    payload.success_url = successUrl;
+  }
+  if (cancelUrl) {
+    payload.cancel_url = cancelUrl;
+  }
+  if (callbackUrl) {
+    payload.ipn_callback_url = callbackUrl;
+  }
+  const endpoint = isSandbox ? SANDBOX_ENDPOINT : PRODUCTION_ENDPOINT;
+  const { data } = await axios2.post(
+    endpoint,
+    payload,
+    {
+      headers: {
+        "x-api-key": key,
+        "Content-Type": "application/json"
+      },
+      timeout: 15e3
     }
-  });
+  );
+  if (!data?.invoice_url) {
+    throw new Error(
+      "NOWPayments did not return invoice_url."
+    );
+  }
   return data;
 };
+function verifyNowPaymentsIPNSignature({
+  rawBody,
+  signature,
+  ipnSecret
+}) {
+  if (!rawBody || !signature || !ipnSecret) {
+    return false;
+  }
+  try {
+    const parsedBody = JSON.parse(rawBody);
+    const sortedBody = sortObject(parsedBody);
+    const canonicalBody = JSON.stringify(sortedBody);
+    const expectedSignature = crypto.createHmac(
+      "sha512",
+      ipnSecret
+    ).update(canonicalBody).digest("hex");
+    const receivedBuffer = Buffer.from(
+      signature,
+      "utf8"
+    );
+    const expectedBuffer = Buffer.from(
+      expectedSignature,
+      "utf8"
+    );
+    if (receivedBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(
+      receivedBuffer,
+      expectedBuffer
+    );
+  } catch {
+    return false;
+  }
+}
 export {
   createCashfreeOrder,
   createNowPaymentsInvoice,
   createRazorpayOrder,
-  createStripeSession
+  createStripeSession,
+  verifyNowPaymentsIPNSignature
 };
 //# sourceMappingURL=index.js.map
