@@ -42,6 +42,30 @@ function sortObject(value: any): any {
   return value;
 }
 
+/**
+ * App settings often use a local fiat (e.g. INR) that NOWPayments rejects
+ * as price_currency. Invoice amount is always expressed in a supported fiat
+ * (default USD). The crypto the customer pays is pay_currency only.
+ */
+const DEFAULT_PRICE_CURRENCY = "usd";
+
+function resolvePriceCurrency(currency: unknown): string {
+  const raw = String(currency || "")
+    .trim()
+    .toLowerCase();
+
+  if (!raw) {
+    return DEFAULT_PRICE_CURRENCY;
+  }
+
+  // Block common store currencies that NOWPayments does not accept as fiat price.
+  if (raw === "inr" || raw === "rs" || raw === "₹") {
+    return DEFAULT_PRICE_CURRENCY;
+  }
+
+  return raw;
+}
+
 export const createNowPaymentsInvoice = async ({
   apiKey,
   sandboxKey,
@@ -90,9 +114,14 @@ export const createNowPaymentsInvoice = async ({
     );
   }
 
-  if (!currency) {
+  const resolvedPayCurrency =
+    payCurrency
+      ? String(payCurrency).trim()
+      : "";
+
+  if (!resolvedPayCurrency) {
     throw new Error(
-      "NOWPayments currency is required.",
+      "NOWPayments payCurrency is required.",
     );
   }
 
@@ -102,8 +131,13 @@ export const createNowPaymentsInvoice = async ({
   const payload: Record<string, any> = {
     price_amount: numericAmount,
 
+    // Fiat denomination of price_amount (not the crypto ticker).
     price_currency:
-      String(currency).trim().toLowerCase(),
+      resolvePriceCurrency(currency),
+
+    // Crypto the hosted page accepts for payment.
+    pay_currency:
+      resolvedPayCurrency.toLowerCase(),
 
     order_id:
       orderId ||
@@ -121,13 +155,6 @@ export const createNowPaymentsInvoice = async ({
     is_fee_paid_by_user:
       toBoolean(isFeePaidByUser),
   };
-
-  if (payCurrency) {
-    payload.pay_currency =
-      String(payCurrency)
-        .trim()
-        .toLowerCase();
-  }
 
   if (successUrl) {
     payload.success_url =

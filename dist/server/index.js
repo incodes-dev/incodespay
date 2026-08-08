@@ -117,6 +117,17 @@ function sortObject(value) {
   }
   return value;
 }
+var DEFAULT_PRICE_CURRENCY = "usd";
+function resolvePriceCurrency(currency) {
+  const raw = String(currency || "").trim().toLowerCase();
+  if (!raw) {
+    return DEFAULT_PRICE_CURRENCY;
+  }
+  if (raw === "inr" || raw === "rs" || raw === "\u20B9") {
+    return DEFAULT_PRICE_CURRENCY;
+  }
+  return raw;
+}
 var createNowPaymentsInvoice = async ({
   apiKey,
   sandboxKey,
@@ -147,23 +158,24 @@ var createNowPaymentsInvoice = async ({
       "NOWPayments amount must be greater than 0."
     );
   }
-  if (!currency) {
+  const resolvedPayCurrency = payCurrency ? String(payCurrency).trim() : "";
+  if (!resolvedPayCurrency) {
     throw new Error(
-      "NOWPayments currency is required."
+      "NOWPayments payCurrency is required."
     );
   }
   const callbackUrl = ipnCallbackUrl || ipnUrl;
   const payload = {
     price_amount: numericAmount,
-    price_currency: String(currency).trim().toLowerCase(),
+    // Fiat denomination of price_amount (not the crypto ticker).
+    price_currency: resolvePriceCurrency(currency),
+    // Crypto the hosted page accepts for payment.
+    pay_currency: resolvedPayCurrency.toLowerCase(),
     order_id: orderId || `NOWPAY_${Date.now()}`,
     order_description: orderDescription || metadata?.description || metadata?.planType || "Payment",
     is_fixed_rate: toBoolean(isFixedRate),
     is_fee_paid_by_user: toBoolean(isFeePaidByUser)
   };
-  if (payCurrency) {
-    payload.pay_currency = String(payCurrency).trim().toLowerCase();
-  }
   if (successUrl) {
     payload.success_url = successUrl;
   }
